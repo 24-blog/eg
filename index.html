@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行為倫理診断ツール — 倫理的位相の幾何学</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0a0a0f;
+    --bg2:        #111118;
+    --bg3:        #16161f;
+    --border:     #2a2a3a;
+    --border2:    #3a3a4f;
+    --gold:       #c9a84c;
+    --gold-dim:   #8a6e30;
+    --gold-glow:  rgba(201,168,76,0.15);
+    --amber:      #d4820a;
+    --amber-dim:  rgba(212,130,10,0.3);
+    --ok:         #4a9e6a;
+    --ok-glow:    rgba(74,158,106,0.4);
+    --gray-j:     #a08030;
+    --gray-glow:  rgba(160,128,48,0.4);
+    --ng:         #a04040;
+    --ng-glow:    rgba(160,64,64,0.4);
+    --text:       #d8d4c8;
+    --text-dim:   #7a7468;
+    --text-bright:#f0ece0;
+    --mono:       'DM Mono', monospace;
+    --serif:      'Noto Serif JP', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── ノイズテクスチャオーバーレイ ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1000; opacity: 0.4;
+  }
+
+  /* ── ヘッダー ── */
+  header {
+    padding: 2rem 2.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(201,168,76,0.05) 0%, transparent 100%);
+  }
+
+  .title-line {
+    display: flex; align-items: baseline; gap: 1.2rem; flex-wrap: wrap;
+  }
+
+  h1 {
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: var(--text-bright);
+  }
+
+  .title-en {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    font-weight: 300;
+  }
+
+  /* ── 全体レイアウト ── */
+  .app {
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    grid-template-rows: auto 1fr;
+    height: calc(100vh - 90px);
+    min-height: 600px;
+  }
+
+  /* ── パネル共通 ── */
+  .panel {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .panel-title {
+    padding: 0.9rem 1.2rem 0.6rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    background: var(--bg3);
+    position: sticky; top: 0; z-index: 10;
+  }
+
+  /* ── 入力パネル ── */
+  .input-section {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .axis-header {
+    display: flex; align-items: center; gap: 0.7rem;
+    margin-bottom: 0.8rem; margin-top: 0.3rem;
+  }
+
+  .axis-badge {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.65rem; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .badge-x { background: rgba(200,80,80,0.2); border: 1px solid #c05050; color: #e08080; }
+  .badge-y { background: rgba(80,160,100,0.2); border: 1px solid #50a064; color: #80c896; }
+  .badge-z { background: rgba(80,120,200,0.2); border: 1px solid #5078c8; color: #80a0e8; }
+
+  .axis-name {
+    font-size: 0.8rem; font-weight: 500; color: var(--text-bright);
+    letter-spacing: 0.05em;
+  }
+
+  .axis-score {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--gold);
+  }
+
+  /* スライダー */
+  .slider-row {
+    margin-bottom: 0.75rem;
+  }
+
+  .slider-label-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0.3rem;
+  }
+
+  .slider-label {
+    font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.03em;
+  }
+
+  .slider-val {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--text);
+    min-width: 3.5rem; text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 2px;
+    background: var(--border2);
+    border-radius: 2px; cursor: pointer;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--gold);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 6px var(--gold-glow);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb {
+    transform: scale(1.3);
+    box-shadow: 0 0 10px rgba(201,168,76,0.5);
+  }
+
+  /* 重み係数設定 */
+  .weight-section {
+    padding: 0.8rem 1.2rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg3);
+  }
+
+  .weight-title {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-dim); margin-bottom: 0.6rem; font-family: var(--mono);
+  }
+
+  .weight-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem; margin-bottom: 0.6rem;
+  }
+
+  .weight-item label {
+    font-size: 0.58rem; color: var(--text-dim); display: block; margin-bottom: 0.2rem;
+  }
+
+  .weight-item input[type=number] {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--border2); color: var(--text);
+    font-family: var(--mono); font-size: 0.68rem;
+    padding: 0.25rem 0.4rem; border-radius: 3px;
+  }
+
+  /* プリセット */
+  .preset-section {
+    padding: 0.8rem 1.2rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .preset-title {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-dim); margin-bottom: 0.6rem; font-family: var(--mono);
+  }
+
+  .preset-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .preset-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+    font-family: var(--serif);
+    font-size: 0.65rem; padding: 0.4rem 0.6rem;
+    cursor: pointer; border-radius: 3px;
+    transition: all 0.15s; text-align: left;
+    letter-spacing: 0.02em;
+  }
+
+  .preset-btn:hover {
+    background: var(--gold-glow);
+    border-color: var(--gold-dim);
+    color: var(--gold);
+  }
+
+  /* ── 中央：3D MAP ── */
+  .map-panel {
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    position: relative;
+    border-right: 1px solid var(--border);
+  }
+
+  .map-toolbar {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.6rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+
+  .map-toolbar-label {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-dim); font-family: var(--mono);
+  }
+
+  .view-btn {
+    background: var(--bg2); border: 1px solid var(--border2);
+    color: var(--text-dim); font-family: var(--mono); font-size: 0.6rem;
+    padding: 0.25rem 0.6rem; cursor: pointer; border-radius: 2px;
+    letter-spacing: 0.1em; transition: all 0.15s;
+  }
+  .view-btn.active, .view-btn:hover {
+    background: var(--gold-glow); border-color: var(--gold-dim); color: var(--gold);
+  }
+
+  .map-canvas-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    position: relative; padding: 1rem;
+  }
+
+  canvas#map3d {
+    cursor: grab;
+    display: block;
+  }
+  canvas#map3d:active { cursor: grabbing; }
+
+  /* ── 右パネル ── */
+  .right-panel {
+    display: flex; flex-direction: column;
+    background: var(--bg2);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  /* 判定 */
+  .judgment-section {
+    padding: 1.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .judgment-badge {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    border-radius: 3px;
+    margin-bottom: 0.8rem;
+    font-size: 0.85rem; font-weight: 500;
+    letter-spacing: 0.08em;
+    width: 100%;
+    justify-content: center;
+    transition: all 0.3s;
+  }
+
+  .judgment-ok {
+    background: rgba(74,158,106,0.15);
+    border: 1px solid var(--ok);
+    color: #6ec896;
+    box-shadow: 0 0 20px rgba(74,158,106,0.15);
+  }
+  .judgment-gray {
+    background: rgba(160,128,48,0.15);
+    border: 1px solid var(--gray-j);
+    color: #c8a050;
+    box-shadow: 0 0 20px rgba(160,128,48,0.15);
+  }
+  .judgment-ng {
+    background: rgba(160,64,64,0.15);
+    border: 1px solid var(--ng);
+    color: #e08080;
+    box-shadow: 0 0 20px rgba(160,64,64,0.15);
+  }
+
+  .score-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.5rem; margin-bottom: 0.8rem;
+  }
+
+  .score-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.7rem;
+    border-radius: 3px;
+  }
+
+  .score-key {
+    font-family: var(--mono); font-size: 0.58rem;
+    color: var(--text-dim); display: block; margin-bottom: 0.2rem;
+  }
+
+  .score-num {
+    font-family: var(--mono); font-size: 0.9rem;
+    color: var(--gold);
+  }
+
+  .score-s {
+    grid-column: 1 / -1;
+    background: var(--bg);
+    border-color: var(--border2);
+  }
+
+  .score-s .score-num {
+    font-size: 1.1rem;
+  }
+
+  /* 補正の可視化バー */
+  .correction-vis {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .correction-title {
+    font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--gold-dim); margin-bottom: 0.6rem; font-family: var(--mono);
+  }
+
+  .corr-bar-wrap {
+    position: relative; height: 8px;
+    background: var(--border);
+    border-radius: 4px; overflow: visible; margin: 0.3rem 0 0.5rem;
+  }
+
+  .corr-bar-center {
+    position: absolute; left: 50%; top: -2px;
+    width: 1px; height: 12px; background: var(--border2);
+  }
+
+  .corr-bar-fill {
+    position: absolute; height: 100%; border-radius: 4px;
+    transition: all 0.3s;
+  }
+
+  .corr-label {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 0.6rem; color: var(--text-dim);
+  }
+
+  .corr-val { color: var(--gold); }
+
+  /* 解釈ログ */
+  .log-section {
+    padding: 1rem 1.2rem;
+    flex: 1;
+  }
+
+  .log-title {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-dim); margin-bottom: 0.8rem; font-family: var(--mono);
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-entry {
+    margin-bottom: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--bg3);
+    border-left: 2px solid var(--border2);
+    border-radius: 0 3px 3px 0;
+    font-size: 0.7rem;
+    line-height: 1.65;
+    color: var(--text);
+    letter-spacing: 0.02em;
+    transition: all 0.3s;
+  }
+
+  .log-entry.highlight {
+    border-left-color: var(--gold);
+    background: rgba(201,168,76,0.05);
+  }
+
+  .log-entry.warning {
+    border-left-color: var(--ng);
+    background: rgba(160,64,64,0.05);
+  }
+
+  .log-entry.neutral {
+    border-left-color: var(--ok);
+    background: rgba(74,158,106,0.05);
+  }
+
+  .log-key {
+    font-family: var(--mono); font-size: 0.58rem;
+    color: var(--gold-dim); display: block; margin-bottom: 0.25rem;
+    letter-spacing: 0.15em; text-transform: uppercase;
+  }
+
+  /* オクタント表示 */
+  .octant-section {
+    padding: 0.8rem 1.2rem;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .octant-title {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-dim); margin-bottom: 0.6rem; font-family: var(--mono);
+  }
+
+  .octant-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.4rem 0.7rem;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    font-family: var(--mono); font-size: 0.65rem;
+    color: var(--text);
+    width: 100%;
+  }
+
+  .octant-signs { color: var(--gold); }
+  .octant-name { color: var(--text-bright); font-size: 0.7rem; margin-left: auto; }
+
+  /* 問い返し */
+  .question-section {
+    padding: 0.8rem 1.2rem;
+    border-top: 1px solid var(--border);
+    background: rgba(201,168,76,0.02);
+  }
+
+  .question-title {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold-dim); margin-bottom: 0.6rem; font-family: var(--mono);
+  }
+
+  .question-item {
+    font-size: 0.68rem; color: var(--text-dim);
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+
+  .question-item:last-child { border-bottom: none; }
+  .question-item::before { content: '？ '; color: var(--gold-dim); font-family: var(--mono); }
+
+  /* ── ボトムバー ── */
+  .bottom-note {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.58rem; color: var(--text-dim);
+    background: var(--bg3);
+    border-top: 1px solid var(--border);
+    font-family: var(--mono); letter-spacing: 0.08em;
+    grid-column: 1 / -1;
+  }
+
+  /* ── アニメーション ── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-entry { animation: fadeIn 0.3s ease; }
+
+  /* ── スクロールバー ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── レスポンシブ ── */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; }
+    .panel { border-right: none; border-bottom: 1px solid var(--border); }
+    .map-panel { min-height: 400px; border-right: none; }
+    .right-panel { border: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-line">
+    <h1>行為倫理診断ツール</h1>
+    <span class="title-en">Octant Ethics Engine / Geometric Ethics v1.0</span>
+  </div>
+  <p class="subtitle">目的・手段・環境の三軸による行為の倫理的位相分析　— 補正関数 Y' = Y + αX + βZ を核とする準形式的評価システム</p>
+</header>
+
+<div class="app">
+
+  <!-- ── 左：入力パネル ── -->
+  <div class="panel" id="inputPanel">
+    <div class="panel-title">入力 / Sub-Indicators</div>
+
+    <!-- 目的 X -->
+    <div class="input-section">
+      <div class="axis-header">
+        <div class="axis-badge badge-x">X</div>
+        <span class="axis-name">目的 — Ends</span>
+        <span class="axis-score" id="xScore">0.00</span>
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">公益性　誰に・どれだけ利益があるか</span>
+          <span class="slider-val" id="v-pb">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="pb">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">必要性　代替手段の不在</span>
+          <span class="slider-val" id="v-ne">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="ne">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">不可避性　権利侵害の回避不能性</span>
+          <span class="slider-val" id="v-iv">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="iv">
+      </div>
+    </div>
+
+    <!-- 手段 Y -->
+    <div class="input-section">
+      <div class="axis-header">
+        <div class="axis-badge badge-y">Y</div>
+        <span class="axis-name">手段 — Means</span>
+        <span class="axis-score" id="yScore">0.00</span>
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">比例性　目的に対して過剰でないか</span>
+          <span class="slider-val" id="v-pr">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="pr">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">最小侵襲性　より穏当な手段の有無</span>
+          <span class="slider-val" id="v-mi">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="mi">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">可逆性　取り返しがつくか</span>
+          <span class="slider-val" id="v-rv">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="rv">
+      </div>
+    </div>
+
+    <!-- 環境 Z -->
+    <div class="input-section">
+      <div class="axis-header">
+        <div class="axis-badge badge-z">Z</div>
+        <span class="axis-name">環境 — Context</span>
+        <span class="axis-score" id="zScore">0.00</span>
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">緊急性　時間的制約の強さ</span>
+          <span class="slider-val" id="v-ur">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="ur">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">制度的正当性　合法性・正統性</span>
+          <span class="slider-val" id="v-lg">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="lg">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">非対称性補正　力関係・情報格差</span>
+          <span class="slider-val" id="v-as">0.00</span>
+        </div>
+        <input type="range" min="-1" max="1" step="0.01" value="0" id="as">
+      </div>
+    </div>
+
+    <!-- 重み係数 -->
+    <div class="weight-section">
+      <div class="weight-title">重み係数 α β（補正関数）</div>
+      <div class="weight-row">
+        <div class="weight-item">
+          <label>α（目的→手段）</label>
+          <input type="number" id="alpha" value="0.3" min="0" max="1" step="0.05">
+        </div>
+        <div class="weight-item">
+          <label>β（環境→手段）</label>
+          <input type="number" id="beta" value="0.4" min="0" max="1" step="0.05">
+        </div>
+        <div class="weight-item">
+          <label>閾値 T</label>
+          <input type="number" id="threshold" value="0.3" min="0" max="1" step="0.05">
+        </div>
+      </div>
+      <div class="weight-title" style="margin-top:0.4rem">最終スコア重み γ δ ε</div>
+      <div class="weight-row">
+        <div class="weight-item">
+          <label>γ（X）</label>
+          <input type="number" id="gamma" value="0.4" min="0" max="1" step="0.05">
+        </div>
+        <div class="weight-item">
+          <label>δ（Y'）</label>
+          <input type="number" id="delta" value="0.4" min="0" max="1" step="0.05">
+        </div>
+        <div class="weight-item">
+          <label>ε（Z）</label>
+          <input type="number" id="epsilon" value="0.2" min="0" max="1" step="0.05">
+        </div>
+      </div>
+    </div>
+
+    <!-- プリセット -->
+    <div class="preset-section">
+      <div class="preset-title">典型ケース / Presets</div>
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="loadPreset('defense')">正当防衛</button>
+        <button class="preset-btn" onclick="loadPreset('excess')">過剰防衛</button>
+        <button class="preset-btn" onclick="loadPreset('whistle')">内部告発</button>
+        <button class="preset-btn" onclick="loadPreset('legal_unjust')">合法的不正義</button>
+        <button class="preset-btn" onclick="loadPreset('zeal')">暴走型善意</button>
+        <button class="preset-btn" onclick="loadPreset('crime')">私利的違法</button>
+        <button class="preset-btn" onclick="loadPreset('reset')">リセット</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 中央：3D MAP ── -->
+  <div class="map-panel">
+    <div class="map-toolbar">
+      <span class="map-toolbar-label">視点</span>
+      <button class="view-btn active" onclick="setView('perspective')" id="btn-perspective">透視投影</button>
+      <button class="view-btn" onclick="setView('xy')" id="btn-xy">XY 平面</button>
+      <button class="view-btn" onclick="setView('xz')" id="btn-xz">XZ 平面</button>
+      <button class="view-btn" onclick="setView('yz')" id="btn-yz">YZ 平面</button>
+      <span style="margin-left:auto;font-family:var(--mono);font-size:0.55rem;color:var(--text-dim)">ドラッグで回転　スクロールでズーム</span>
+    </div>
+    <div class="map-canvas-wrap">
+      <canvas id="map3d"></canvas>
+    </div>
+  </div>
+
+  <!-- ── 右：判定・解釈 ── -->
+  <div class="right-panel">
+    <div class="panel-title">評価 / Judgment</div>
+
+    <!-- 判定 -->
+    <div class="judgment-section">
+      <div class="judgment-badge judgment-gray" id="judgmentBadge">
+        <span id="judgmentText">グレー領域</span>
+        <span style="font-family:var(--mono);font-size:0.7rem" id="judgmentS">S = 0.00</span>
+      </div>
+
+      <div class="score-grid">
+        <div class="score-item">
+          <span class="score-key">X — 目的</span>
+          <span class="score-num" id="dispX">0.00</span>
+        </div>
+        <div class="score-item">
+          <span class="score-key">Y — 手段（生）</span>
+          <span class="score-num" id="dispY">0.00</span>
+        </div>
+        <div class="score-item">
+          <span class="score-key">Y' — 手段（補正後）</span>
+          <span class="score-num" id="dispYp">0.00</span>
+        </div>
+        <div class="score-item">
+          <span class="score-key">Z — 環境</span>
+          <span class="score-num" id="dispZ">0.00</span>
+        </div>
+        <div class="score-item score-s">
+          <span class="score-key">S — 総合スコア　　γX + δY' + εZ</span>
+          <span class="score-num" id="dispS">0.00</span>
+        </div>
+      </div>
+
+      <!-- 補正可視化 -->
+      <div class="correction-vis">
+        <div class="correction-title">手段補正 Y → Y'</div>
+        <div class="corr-bar-wrap">
+          <div class="corr-bar-center"></div>
+          <div class="corr-bar-fill" id="corrBarY" style="background:#50a064;left:50%;width:0"></div>
+        </div>
+        <div class="corr-label">
+          <span>Y <span class="corr-val" id="corrY">0.00</span></span>
+          <span>Y' <span class="corr-val" id="corrYp">0.00</span></span>
+        </div>
+        <div class="corr-bar-wrap" style="margin-top:0.5rem">
+          <div class="corr-bar-center"></div>
+          <div class="corr-bar-fill" id="corrBarYp" style="background:#c9a84c;left:50%;width:0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- オクタント -->
+    <div class="octant-section">
+      <div class="octant-title">オクタント分類</div>
+      <div class="octant-badge">
+        <span class="octant-signs" id="octantSigns">(0, 0, 0)</span>
+        <span class="octant-name" id="octantName">中立</span>
+      </div>
+    </div>
+
+    <!-- 解釈ログ -->
+    <div class="log-section">
+      <div class="log-title">解釈ログ / Interpretation</div>
+      <div id="logContainer"></div>
+    </div>
+
+    <!-- 問い返し -->
+    <div class="question-section">
+      <div class="question-title">批判的問い / Critical Questions</div>
+      <div id="questionsContainer"></div>
+    </div>
+
+  </div>
+
+  <div class="bottom-note">
+    注記：重み係数 α β γ δ ε は操作的仮定値。恣意性は透明化されるが消去されない。本ツールは思考の補助であり判断の委任を意図しない。　|　Y' = Y + αX + βZ　·　S = γX + δY' + εZ
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════ */
+const state = {
+  pb:0, ne:0, iv:0,
+  pr:0, mi:0, rv:0,
+  ur:0, lg:0, as:0,
+  alpha:0.3, beta:0.4, threshold:0.3,
+  gamma:0.4, delta:0.4, epsilon:0.2,
+};
+
+/* ════════════════════════════════════════════════
+   PRESETS
+════════════════════════════════════════════════ */
+const PRESETS = {
+  defense:     { pb:0.9, ne:0.8, iv:0.8, pr:0.5, mi:0.3, rv:0.2, ur:0.9, lg:0.7, as:0.6,  label:'正当防衛' },
+  excess:      { pb:0.8, ne:0.6, iv:0.5, pr:-0.4,mi:0.2, rv:-0.3,ur:0.7, lg:0.4, as:0.3,  label:'過剰防衛' },
+  whistle:     { pb:0.7, ne:0.6, iv:0.5, pr:-0.3,mi:-0.2,rv:0.4, ur:0.5, lg:-0.3,as:0.6,  label:'内部告発' },
+  legal_unjust:{ pb:-0.4,ne:0.5, iv:0.3, pr:0.7, mi:0.6, rv:0.6, ur:0.2, lg:0.9, as:-0.5, label:'合法的不正義' },
+  zeal:        { pb:0.6, ne:0.3, iv:0.2, pr:-0.6,mi:-0.5,rv:-0.6,ur:0.2, lg:-0.4,as:-0.3, label:'暴走型善意' },
+  crime:       { pb:-0.8,ne:-0.3,iv:-0.2,pr:-0.7,mi:-0.6,rv:-0.8,ur:-0.3,lg:-0.9,as:-0.7, label:'私利的違法' },
+  reset:       { pb:0,   ne:0,   iv:0,   pr:0,   mi:0,   rv:0,   ur:0,   lg:0,   as:0,    label:'リセット' },
+};
+
+function loadPreset(key) {
+  const p = PRESETS[key];
+  ['pb','ne','iv','pr','mi','rv','ur','lg','as'].forEach(k => {
+    if(p[k] !== undefined) {
+      state[k] = p[k];
+      document.getElementById(k).value = p[k];
+    }
+  });
+  update();
+}
+
+/* ════════════════════════════════════════════════
+   COMPUTE
+════════════════════════════════════════════════ */
+function compute() {
+  const X = 0.4*state.pb + 0.3*state.ne + 0.3*state.iv;
+  const Y = 0.4*state.pr + 0.3*state.mi + 0.3*state.rv;
+  const Z = 0.4*state.ur + 0.3*state.lg + 0.3*state.as;
+  const Yp = Y + state.alpha*X + state.beta*Z;
+  const S = state.gamma*X + state.delta*Yp + state.epsilon*Z;
+
+  let judgment;
+  if (X < -0.3) judgment = 'NG_PURPOSE';
+  else if (S >= state.threshold) judgment = 'OK';
+  else if (S >= 0) judgment = 'GRAY';
+  else judgment = 'NG';
+
+  return { X, Y, Z, Yp, S, judgment };
+}
+
+/* ════════════════════════════════════════════════
+   OCTANT LABELS
+════════════════════════════════════════════════ */
+const OCTANT_LABELS = {
+  '+++': '理想的正当行為',
+  '++-': '状況無視の善意',
+  '+-+': '過剰手段',
+  '+--': '暴走型善意',
+  '-++': '合法的不正義',
+  '-+-': '文脈不正・手段整合',
+  '--+': '動機・手段とも問題',
+  '---': '全面的問題行為',
+};
+
+function getOctant(X, Yp, Z) {
+  const sx = X >= 0 ? '+' : '-';
+  const sy = Yp >= 0 ? '+' : '-';
+  const sz = Z >= 0 ? '+' : '-';
+  return {
+    key: sx+sy+sz,
+    signs: `(${sx}X, ${sy}Y', ${sz}Z)`,
+    name: OCTANT_LABELS[sx+sy+sz] || '未定義',
+  };
+}
+
+/* ════════════════════════════════════════════════
+   INTERPRETATION LOG
+════════════════════════════════════════════════ */
+function buildLog({ X, Y, Z, Yp, S, judgment }) {
+  const logs = [];
+
+  // ハード制約チェック
+  if (X < -0.3) {
+    logs.push({ type:'warning', key:'目的のハード制約', text:`X = ${X.toFixed(2)} — 目的の正当性が閾値 -0.3 を下回っています。目的が明確に不当である場合、手段・環境の評価に関わらず即不許容となります（ハード制約）。` });
+  }
+
+  // 補正の意味
+  const delta_yy = Yp - Y;
+  if (Math.abs(delta_yy) > 0.05) {
+    const dir = delta_yy > 0 ? '緩和' : '厳格化';
+    logs.push({
+      type: delta_yy > 0 ? 'highlight' : 'warning',
+      key: '手段許容補正',
+      text: `Y' - Y = ${delta_yy.toFixed(2)}。目的（αX = ${(state.alpha*X).toFixed(2)}）と環境（βZ = ${(state.beta*Z).toFixed(2)}）の影響により、手段の許容基準が${dir}されました。`
+    });
+  } else {
+    logs.push({ type:'neutral', key:'手段許容補正', text:`補正量 ${delta_yy.toFixed(2)} — 目的と環境による手段への影響は軽微です。Y ≈ Y' が成立しています。` });
+  }
+
+  // ボトルネック分析
+  const scores = [
+    { label:'目的 X', val: X },
+    { label:"手段 Y'", val: Yp },
+    { label:'環境 Z', val: Z },
+  ];
+  const bottleneck = scores.reduce((a,b) => a.val < b.val ? a : b);
+  if (bottleneck.val < 0) {
+    logs.push({ type:'warning', key:'ボトルネック', text:`${bottleneck.label} = ${bottleneck.val.toFixed(2)} が最も低く評価の足を引いています。この軸を改善しない限り、他の軸を改善しても総合スコアの改善は限定的です。` });
+  }
+
+  // 境界付近の警告
+  if (judgment !== 'NG_PURPOSE' && Math.abs(S - state.threshold) < 0.08) {
+    logs.push({ type:'warning', key:'境界近傍', text:`S = ${S.toFixed(2)} — 許容閾値 T = ${state.threshold.toFixed(2)} の近傍にあります。わずかな評価の変動で判定が変わりうる不安定領域です。` });
+  }
+
+  // 改善提案
+  if (judgment === 'NG' || judgment === 'NG_PURPOSE') {
+    const suggestions = [];
+    if (Y < 0) suggestions.push(`手段の可逆性・比例性を高めると Y が改善されます`);
+    if (Z < 0) suggestions.push(`制度的正統性の確保により Z が改善されます`);
+    if (X < -0.3) suggestions.push(`目的の再定義なくして正当化は困難です`);
+    if (suggestions.length > 0) {
+      logs.push({ type:'highlight', key:'改善の方向性', text: suggestions.join('。') + '。' });
+    }
+  }
+
+  // 非線形警告
+  if (X > 0.5 && Yp < -0.3) {
+    logs.push({ type:'warning', key:'非線形性の警告', text:`目的は強く正当（X = ${X.toFixed(2)}）であるにも関わらず手段は深く問題的（Y' = ${Yp.toFixed(2)}）です。線形補正モデルの限界：目的の正当性は手段の根本的問題を解消しない。` });
+  }
+
+  return logs;
+}
+
+/* ════════════════════════════════════════════════
+   CRITICAL QUESTIONS
+════════════════════════════════════════════════ */
+function buildQuestions({ X, Y, Z, Yp, S, judgment }) {
+  const qs = [];
+  qs.push('この評価のどの重み係数が最も恣意的か。それを変えた場合、判定は変わるか。');
+
+  if (judgment === 'OK') {
+    qs.push('許容された行為は、関係性の文脈（縁起的連関）において長期的にどう作用するか。');
+  }
+  if (X > 0.5) {
+    qs.push('目的の正当性を誰が定義しているか。その定義自体に権力関係が入り込んでいないか。');
+  }
+  if (Z > 0.5) {
+    qs.push('緊急性は客観的に存在するか、あるいは認識の産物か。');
+  }
+  if (Math.abs(Y - Yp) > 0.2) {
+    qs.push('補正によって許容された手段は、補正を除いた場合にも本来的に正当だと言えるか。');
+  }
+  qs.push('この評価行為自体が、評価対象の関係的文脈を変質させていないか。');
+  return qs;
+}
+
+/* ════════════════════════════════════════════════
+   UI UPDATE
+════════════════════════════════════════════════ */
+function update() {
+  const c = compute();
+  const { X, Y, Z, Yp, S, judgment } = c;
+
+  // スコア表示
+  document.getElementById('xScore').textContent = X.toFixed(2);
+  document.getElementById('yScore').textContent = Y.toFixed(2);
+  document.getElementById('zScore').textContent = Z.toFixed(2);
+  document.getElementById('dispX').textContent = X.toFixed(3);
+  document.getElementById('dispY').textContent = Y.toFixed(3);
+  document.getElementById('dispYp').textContent = Yp.toFixed(3);
+  document.getElementById('dispZ').textContent = Z.toFixed(3);
+  document.getElementById('dispS').textContent = S.toFixed(3);
+
+  // 判定バッジ
+  const jBadge = document.getElementById('judgmentBadge');
+  const jText = document.getElementById('judgmentText');
+  const jS = document.getElementById('judgmentS');
+  jBadge.className = 'judgment-badge';
+  if (judgment === 'OK') {
+    jBadge.classList.add('judgment-ok');
+    jText.textContent = '許容';
+  } else if (judgment === 'GRAY') {
+    jBadge.classList.add('judgment-gray');
+    jText.textContent = 'グレー領域';
+  } else {
+    jBadge.classList.add('judgment-ng');
+    jText.textContent = judgment === 'NG_PURPOSE' ? '不許容（目的NG）' : '不許容';
+  }
+  jS.textContent = `S = ${S.toFixed(3)}`;
+
+  // 補正バー
+  function setBar(barId, val) {
+    const bar = document.getElementById(barId);
+    const pct = Math.abs(val) * 50;
+    if (val >= 0) {
+      bar.style.left = '50%';
+      bar.style.width = pct + '%';
+      bar.style.background = '#50a064';
+    } else {
+      bar.style.left = (50 - pct) + '%';
+      bar.style.width = pct + '%';
+      bar.style.background = '#a04040';
+    }
+  }
+  setBar('corrBarY', Y);
+  setBar('corrBarYp', Yp);
+  document.getElementById('corrY').textContent = Y.toFixed(3);
+  document.getElementById('corrYp').textContent = Yp.toFixed(3);
+
+  // オクタント
+  const oct = getOctant(X, Yp, Z);
+  document.getElementById('octantSigns').textContent = oct.signs;
+  document.getElementById('octantName').textContent = oct.name;
+
+  // ログ
+  const logContainer = document.getElementById('logContainer');
+  logContainer.innerHTML = '';
+  buildLog(c).forEach(entry => {
+    const div = document.createElement('div');
+    div.className = `log-entry ${entry.type}`;
+    div.innerHTML = `<span class="log-key">${entry.key}</span>${entry.text}`;
+    logContainer.appendChild(div);
+  });
+
+  // 問い返し
+  const qContainer = document.getElementById('questionsContainer');
+  qContainer.innerHTML = '';
+  buildQuestions(c).forEach(q => {
+    const div = document.createElement('div');
+    div.className = 'question-item';
+    div.textContent = q;
+    qContainer.appendChild(div);
+  });
+
+  // 3D更新
+  drawMap(X, Y, Z, Yp, S, judgment);
+}
+
+/* ════════════════════════════════════════════════
+   3D CANVAS RENDERER（疑似3D投影）
+════════════════════════════════════════════════ */
+const canvas = document.getElementById('map3d');
+const ctx = canvas.getContext('2d');
+
+let viewMode = 'perspective';
+let rotX = 0.45, rotY = 0.65;
+let scale = 1.0;
+let isDragging = false, lastMX = 0, lastMY = 0;
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const size = Math.min(wrap.clientWidth - 32, wrap.clientHeight - 32, 520);
+  canvas.width  = Math.round(size * dpr);
+  canvas.height = Math.round(size * dpr);
+  canvas.style.width  = size + 'px';
+  canvas.style.height = size + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ── 投影変換 ──
+function project3D(x, y, z) {
+  if (viewMode === 'xy') return { px: x, py: -y, pz: z };
+  if (viewMode === 'xz') return { px: x, py: -z, pz: y };
+  if (viewMode === 'yz') return { px: z, py: -y, pz: x };
+
+  // 透視投影：YXZ オイラー回転
+  const cos1 = Math.cos(rotX), sin1 = Math.sin(rotX);
+  const cos2 = Math.cos(rotY), sin2 = Math.sin(rotY);
+
+  // Y軸回転
+  const x1 = x * cos2 + z * sin2;
+  const y1 = y;
+  const z1 = -x * sin2 + z * cos2;
+
+  // X軸回転
+  const x2 = x1;
+  const y2 = y1 * cos1 - z1 * sin1;
+  const z2 = y1 * sin1 + z1 * cos1;
+
+  // 軽い透視
+  const fov = 4.5;
+  const d = fov / (fov + z2 + 0.5);
+  return { px: x2 * d, py: -y2 * d, pz: z2 };
+}
+
+function toCanvas(px, py) {
+  const W = parseFloat(canvas.style.width)  || canvas.width;
+  const H = parseFloat(canvas.style.height) || canvas.height;
+  const s = Math.min(W, H) * 0.38 * scale;
+  return { cx: W/2 + px * s, cy: H/2 + py * s };
+}
+
+// ── 軸・グリッド描画 ──
+function drawAxes() {
+  const axes = [
+    { from:[-1,0,0], to:[1,0,0], color:'rgba(200,80,80,0.7)', label:'X（目的）', lp:[1.1,0,0] },
+    { from:[0,-1,0], to:[0,1,0], color:'rgba(80,160,100,0.7)', label:"Y'（手段補正）", lp:[0,1.1,0] },
+    { from:[0,0,-1], to:[0,0,1], color:'rgba(80,120,200,0.7)', label:'Z（環境）', lp:[0,0,1.1] },
+  ];
+
+  axes.forEach(ax => {
+    const a = project3D(...ax.from);
+    const b = project3D(...ax.to);
+    const p1 = toCanvas(a.px, a.py);
+    const p2 = toCanvas(b.px, b.py);
+    const lp = project3D(...ax.lp);
+    const pl = toCanvas(lp.px, lp.py);
+
+    ctx.beginPath();
+    ctx.moveTo(p1.cx, p1.cy);
+    ctx.lineTo(p2.cx, p2.cy);
+    ctx.strokeStyle = ax.color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = ax.color;
+    ctx.font = `300 11px 'DM Mono', monospace`;
+    ctx.fillText(ax.label, pl.cx + 4, pl.cy + 4);
+  });
+
+  // 原点マーク
+  const o = project3D(0,0,0);
+  const oc = toCanvas(o.px, o.py);
+  ctx.beginPath();
+  ctx.arc(oc.cx, oc.cy, 2, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(201,168,76,0.5)';
+  ctx.fill();
+
+  // グリッド線（XZ平面）
+  for (let i = -1; i <= 1; i += 0.5) {
+    const steps = [[-1,0,i],[1,0,i],[i,0,-1],[i,0,1]];
+    const lines = [
+      [[-1,0,i],[1,0,i]],
+      [[i,0,-1],[i,0,1]],
+    ];
+    lines.forEach(([from, to]) => {
+      const a = project3D(...from);
+      const b = project3D(...to);
+      const p1 = toCanvas(a.px, a.py);
+      const p2 = toCanvas(b.px, b.py);
+      ctx.beginPath();
+      ctx.moveTo(p1.cx, p1.cy);
+      ctx.lineTo(p2.cx, p2.cy);
+      ctx.strokeStyle = i === 0 ? 'rgba(201,168,76,0.15)' : 'rgba(42,42,58,0.6)';
+      ctx.lineWidth = i === 0 ? 1 : 0.5;
+      ctx.stroke();
+    });
+  }
+}
+
+// ── オクタントラベル ──
+const OCTANT_POS = [
+  [0.7,  0.7,  0.7, '理想的正当', 'rgba(74,158,106,0.6)'],
+  [0.7,  0.7, -0.7, '状況無視', 'rgba(160,128,48,0.6)'],
+  [0.7, -0.7,  0.7, '過剰手段', 'rgba(160,128,48,0.6)'],
+  [0.7, -0.7, -0.7, '暴走型善意', 'rgba(160,80,48,0.6)'],
+  [-0.7, 0.7,  0.7, '合法的不正義', 'rgba(160,100,48,0.6)'],
+  [-0.7, 0.7, -0.7, '文脈不正', 'rgba(160,64,64,0.6)'],
+  [-0.7,-0.7,  0.7, '動機・手段問題', 'rgba(160,64,64,0.6)'],
+  [-0.7,-0.7, -0.7, '全面問題', 'rgba(140,48,48,0.6)'],
+];
+
+function drawOctantLabels() {
+  OCTANT_POS.forEach(([x,y,z,label,color]) => {
+    const p = project3D(x,y,z);
+    const c = toCanvas(p.px, p.py);
+    ctx.fillStyle = color;
+    ctx.font = `400 11px 'Noto Serif JP', serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, c.cx, c.cy);
+  });
+  ctx.textAlign = 'left';
+}
+
+// ── 境界面 S=0, S=T ──
+function drawBoundaryPlanes(S, threshold) {
+  // S平面の可視化（格子点サンプリング）
+  // S = γX + δ(Y + αX + βZ) + εZ = (γ+δα)X + δY + (δβ+ε)Z = const
+  const gam = state.gamma, del = state.delta, eps = state.epsilon;
+  const al = state.alpha, be = state.beta;
+  const A = gam + del*al;
+  const B = del;
+  const C = del*be + eps;
+
+  [0, threshold].forEach((Sval, idx) => {
+    const color = idx === 0
+      ? 'rgba(160,64,64,0.08)'
+      : 'rgba(201,168,76,0.08)';
+    const strokeColor = idx === 0
+      ? 'rgba(160,64,64,0.25)'
+      : 'rgba(201,168,76,0.25)';
+
+    // 格子点を描画して面を示す
+    const N = 8;
+    for (let xi = 0; xi < N; xi++) {
+      for (let zi = 0; zi < N; zi++) {
+        const x = -1 + (2 * xi / (N-1));
+        const z = -1 + (2 * zi / (N-1));
+        // S = Ax + By + Cz → y = (S - Ax - Cz)/B
+        if (Math.abs(B) < 1e-6) continue;
+        const y = (Sval - A*x - C*z) / B;
+        if (y < -1.2 || y > 1.2) continue;
+
+        const p = project3D(x, y, z);
+        const c = toCanvas(p.px, p.py);
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, 1.5, 0, Math.PI*2);
+        ctx.fillStyle = strokeColor;
+        ctx.fill();
+      }
+    }
+  });
+}
+
+// ── メイン描画 ──
+function drawMap(X, Y, Z, Yp, S, judgment) {
+  resizeCanvas();
+  const W = parseFloat(canvas.style.width)  || canvas.width;
+  const H = parseFloat(canvas.style.height) || canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // 背景
+  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W/2);
+  grad.addColorStop(0, '#141420');
+  grad.addColorStop(1, '#0a0a0f');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  drawBoundaryPlanes(S, state.threshold);
+  drawAxes();
+  drawOctantLabels();
+
+  // Y 生点（薄い）
+  const rawY = project3D(X, Y, Z);
+  const rawC = toCanvas(rawY.px, rawY.py);
+  ctx.beginPath();
+  ctx.arc(rawC.cx, rawC.cy, 4, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(80,160,100,0.3)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(80,160,100,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Y' 補正後点へのベクトル
+  const corrP = project3D(X, Yp, Z);
+  const corrC = toCanvas(corrP.px, corrP.py);
+
+  if (Math.abs(Y - Yp) > 0.02) {
+    ctx.beginPath();
+    ctx.moveTo(rawC.cx, rawC.cy);
+    ctx.lineTo(corrC.cx, corrC.cy);
+    ctx.strokeStyle = 'rgba(201,168,76,0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 矢印頭
+    const angle = Math.atan2(corrC.cy - rawC.cy, corrC.cx - rawC.cx);
+    const aLen = 6;
+    ctx.beginPath();
+    ctx.moveTo(corrC.cx, corrC.cy);
+    ctx.lineTo(corrC.cx - aLen*Math.cos(angle-0.4), corrC.cy - aLen*Math.sin(angle-0.4));
+    ctx.lineTo(corrC.cx - aLen*Math.cos(angle+0.4), corrC.cy - aLen*Math.sin(angle+0.4));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(201,168,76,0.7)';
+    ctx.fill();
+  }
+
+  // 判定カラー決定
+  let dotColor, glowColor;
+  if (judgment === 'OK') {
+    dotColor = '#4a9e6a'; glowColor = 'rgba(74,158,106,0.5)';
+  } else if (judgment === 'GRAY') {
+    dotColor = '#a08030'; glowColor = 'rgba(160,128,48,0.5)';
+  } else {
+    dotColor = '#a04040'; glowColor = 'rgba(160,64,64,0.5)';
+  }
+
+  // グロウ
+  const glow = ctx.createRadialGradient(corrC.cx, corrC.cy, 0, corrC.cx, corrC.cy, 24);
+  glow.addColorStop(0, glowColor);
+  glow.addColorStop(1, 'transparent');
+  ctx.beginPath();
+  ctx.arc(corrC.cx, corrC.cy, 24, 0, Math.PI*2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  // メイン点
+  ctx.beginPath();
+  ctx.arc(corrC.cx, corrC.cy, 7, 0, Math.PI*2);
+  ctx.fillStyle = dotColor;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 12;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // リング
+  ctx.beginPath();
+  ctx.arc(corrC.cx, corrC.cy, 10, 0, Math.PI*2);
+  ctx.strokeStyle = dotColor.replace(')', ',0.4)').replace('rgb(', 'rgba(');
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 座標ラベル
+  ctx.fillStyle = 'rgba(201,168,76,0.85)';
+  ctx.font = `400 11px 'DM Mono', monospace`;
+  const labelX = corrC.cx + 12, labelY = corrC.cy - 8;
+  ctx.fillText(`(${X.toFixed(2)}, ${Yp.toFixed(2)}, ${Z.toFixed(2)})`, labelX, labelY);
+  ctx.fillStyle = 'rgba(201,168,76,0.5)';
+  ctx.font = `300 10px 'DM Mono', monospace`;
+  ctx.fillText(`S = ${S.toFixed(3)}`, labelX, labelY + 13);
+
+  // 境界面凡例
+  const legY = H - 20;
+  ctx.font = `300 10px 'DM Mono', monospace`;
+  ctx.fillStyle = 'rgba(160,64,64,0.7)';
+  ctx.fillText('● S=0 面', 12, legY);
+  ctx.fillStyle = 'rgba(201,168,76,0.7)';
+  ctx.fillText(`● S=${state.threshold} 面（許容閾値）`, 70, legY);
+}
+
+/* ════════════════════════════════════════════════
+   INTERACTIONS
+════════════════════════════════════════════════ */
+// ドラッグ回転
+canvas.addEventListener('mousedown', e => {
+  isDragging = true; lastMX = e.clientX; lastMY = e.clientY;
+});
+window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mousemove', e => {
+  if (!isDragging || viewMode !== 'perspective') return;
+  rotY += (e.clientX - lastMX) * 0.008;
+  rotX += (e.clientY - lastMY) * 0.008;
+  rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+  lastMX = e.clientX; lastMY = e.clientY;
+  update();
+});
+
+// タッチ対応
+canvas.addEventListener('touchstart', e => {
+  isDragging = true;
+  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+  e.preventDefault();
+}, { passive:false });
+window.addEventListener('touchend', () => { isDragging = false; });
+window.addEventListener('touchmove', e => {
+  if (!isDragging || viewMode !== 'perspective') return;
+  rotY += (e.touches[0].clientX - lastMX) * 0.01;
+  rotX += (e.touches[0].clientY - lastMY) * 0.01;
+  rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+  e.preventDefault();
+  update();
+}, { passive:false });
+
+// ズーム
+canvas.addEventListener('wheel', e => {
+  scale *= e.deltaY > 0 ? 0.92 : 1.09;
+  scale = Math.max(0.4, Math.min(3.0, scale));
+  e.preventDefault();
+  update();
+}, { passive:false });
+
+// 視点切替
+function setView(mode) {
+  viewMode = mode;
+  ['perspective','xy','xz','yz'].forEach(v => {
+    document.getElementById('btn-'+v).classList.toggle('active', v === mode);
+  });
+  update();
+}
+
+// スライダー・数値入力イベント
+['pb','ne','iv','pr','mi','rv','ur','lg','as'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    state[id] = parseFloat(el.value);
+    document.getElementById('v-'+id).textContent = state[id].toFixed(2);
+    update();
+  });
+});
+
+['alpha','beta','threshold','gamma','delta','epsilon'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    state[id] = parseFloat(e.target.value) || 0;
+    update();
+  });
+});
+
+// リサイズ
+window.addEventListener('resize', () => update());
+
+/* ════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════ */
+update();
+</script>
+</body>
+</html>
